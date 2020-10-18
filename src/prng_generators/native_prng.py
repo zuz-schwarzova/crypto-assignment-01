@@ -11,10 +11,10 @@ def nativeprng(byte_size):
     ucoList = [4, 3, 3, 5, 2, 9, 4, 3, 3, 5, 2, 9, 4, 3, 3, 5]
     # seed, as hexadecimal characters
     seed = bytearray(ucoList)
-    #create an instance of Random with given seed
+    # create an instance of Random with given seed
     random.seed(seed)
-    #get random bits
+    # get random bits
     randbits = random.getrandbits(10**9)
-    #convert random bits to desired byte size
+    # convert random bits to desired byte size
     result = randbits.to_bytes(byte_size, 'big')
     return result

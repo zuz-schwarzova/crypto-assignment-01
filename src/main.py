@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from src.prng_generators.custom_prng import ansiX931prng
 from src.prng_generators.native_prng import nativeprng
 from src.utils.hash_file import sha256sum
@@ -26,7 +28,3 @@ def main():
 
     #generates sha256 string hash for F.bin and prints it
     print('F.bin\'s SHA256 hash is: ' + sha256sum('target/F.bin'))
-
-
-if __name__ == "__main__":
-    main()
