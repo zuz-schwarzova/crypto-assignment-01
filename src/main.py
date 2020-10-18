@@ -1,8 +1,100 @@
 #!/usr/bin/env python
 
-from src.prng_generators.custom_prng import ansiX931prng
-from src.prng_generators.native_prng import nativeprng
-from src.utils.hash_file import sha256sum
+import hashlib
+from Crypto.Cipher import AES
+import random
+
+
+'''
+Algorithm for finding a SHA256 hash string of a file.
+Source: https://www.quickprogrammingtips.com/python/how-to-calculate-sha256-hash-of-a-file-in-python.html
+
+:param filename: name/path to the file
+:returns: string hash of a given file
+'''
+def sha256sum(filename):
+    sha256_hash = hashlib.sha256()
+    with open(filename, "rb") as file:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: file.read(4096), b""):
+            sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+
+
+'''
+Helper exclusive-or function for byte parameters.
+Source: https://nitratine.net/blog/post/xor-python-byte-strings/
+
+:param param1: bytes parameter
+:param param2: bytes parameter
+:returns: byte value of XOR-ed parameters
+'''
+def byte_xor(param1, param2):
+    return bytes([_x ^ _y for _x, _y in zip(param1, param2)])
+
+
+'''
+Custom implementation of 128bit ANSI X9.31 pseudorandom number generator.
+
+AES implementation used from PyCryptodome Python package:
+https://pycryptodome.readthedocs.io/en/latest/src/introduction.html
+
+:param byte_size: desired size of generated data (in bytes)
+:returns: bytearray of pseudorandom data
+'''
+def ansiX931prng(byte_size):
+    block_size = 16
+    # repetitions of uco for initial seed, for cipher block size 16bytes (128bits)
+    ucoList = [4, 3, 3, 5, 2, 9, 4, 3, 3, 5, 2, 9, 4, 3, 3, 5]
+    # V is initial 128bit seed, as hexadecimal characters
+    V = bytearray(ucoList)
+    # K is 128bit encryption key, as hexadecimal characters
+    K = bytearray(reversed(ucoList))
+    # dtv is Date/Time vector
+    dtv = 0
+    # initializing of empty result
+    result = bytearray()
+    # creating a new AES cipher, with encryption under key K
+    edeK = AES.new(K, AES.MODE_ECB)
+
+    # loop with ANSI X9.31 algorithm for getting blocks of pseudorandom data
+    # keeps extending result until desired size
+    while len(result) < byte_size:
+        # calculating intermediate value I
+        # Date/Time vector (as hexadecimal), encrypted with AES cipher edeK
+        I = edeK.encrypt(dtv.to_bytes(block_size, 'big'))
+        # creating block of pseudorandom data R
+        # XOR of intermediate value I and initial seed V, encrypted with AES cipher edeK
+        R = edeK.encrypt(byte_xor(I, V))
+        # creating a new seed V
+        # XOR of pseudorandom data R and intermediate value I, encrypted with AES cipher edeK
+        V = edeK.encrypt(byte_xor(R, I))
+        # extending result by pseudorandom data R, until it reaches desired byte size
+        result.extend(R[:byte_size - len(result)])
+        # updating Date/Time vector for next iteration
+        dtv = dtv + 1
+    return result
+
+
+'''
+Implementation of pseudo-random number generator with seed, using Python native functions for random
+
+:param byte_size: desired size of generated data (in bytes)
+:returns: pseudorandom byte data of desired size
+'''
+def nativeprng(byte_size):
+    # repetitions of uco for initial seed, for cipher block size 16bytes (128bits)
+    ucoList = [4, 3, 3, 5, 2, 9, 4, 3, 3, 5, 2, 9, 4, 3, 3, 5]
+    # seed, as hexadecimal characters
+    seed = bytearray(ucoList)
+    # create an instance of Random with given seed
+    random.seed(seed)
+    # get random bits
+    randbits = random.getrandbits(10**9)
+    # convert random bits to desired byte size
+    result = randbits.to_bytes(byte_size, 'big')
+    return result
+
 
 '''
 Creates two binary files (F.bin, F2.bin) of pseudorandom data with size 10^9 bits (125000000 bytes) in target directory.
@@ -13,18 +105,22 @@ Prints a SHA256 string hash of the F.bin file.
 '''
 def main():
     # creates a new binary file in target directort, F.bin
-    fFile = open("target/F.bin", "wb")
+    fFile = open("F.bin", "wb")
     # generates pseudorandom data of size 10^9 bits using ANSI X9.31 implementation
     random_data = ansiX931prng(125000000)
     # writes data into file
     fFile.write(random_data)
 
-    #creates a new binary file in target directort, F2.bin
-    f2File = open("target/F2.bin", "wb")
+    # creates a new binary file in target directort, F2.bin
+    f2File = open("F2.bin", "wb")
     # generates pseudorandom data of size 10^9 bits using native Python random functions
     random_data = nativeprng(125000000)
     # writes data into file
     f2File.write(random_data)
 
-    #generates sha256 string hash for F.bin and prints it
-    print('F.bin\'s SHA256 hash is: ' + sha256sum('target/F.bin'))
+    # generates sha256 string hash for F.bin and prints it
+    print('F.bin\'s SHA256 hash is: ' + sha256sum('F.bin'))
+
+
+# executes main function
+main()
